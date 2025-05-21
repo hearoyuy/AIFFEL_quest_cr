@@ -1,0 +1,84 @@
+{# accounting/templates/accounting/_debugging_details_panel.html #}
+{% if debug_info or parsed_data_json or cand_rows or analysis_duration_total != "N/A" %}
+  <div class="inv-card p-3 mt-4" style="border-top: 3px solid #007bff;">
+    {# 토글 기능 제거, 제목만 남김 #}
+    <h4 class="inv-section-title mb-3" style="font-size: 1.2rem; color: #007bff;">
+      Debugging & Analysis Details
+    </h4>
+
+    {# 항상 보이는 내용으로 변경 (이전 div class="collapse" 제거) #}
+    <div class="card-body small bg-light mt-2 p-0"> {# card-body 대신 패딩 조정 위해 p-0 추가, 또는 card 제거 #}
+
+        {# 1. Performance Metrics #}
+        {% if analysis_duration_parser != "N/A" or analysis_duration_matching != "N/A" or analysis_duration_total != "N/A" %}
+          <div class="mb-3 p-2" style="background-color: #f8f9fa; border-radius: .25rem;"> {# 각 섹션 구분을 위해 배경 및 패딩 추가 #}
+            <h5 class="inv-section-title" style="font-size: 1rem;">Performance Metrics</h5>
+            <div class="text-muted">
+              {% if analysis_duration_parser and analysis_duration_parser != "N/A" %}
+                <p class="mb-0"><span class="inv-label">Parser Call Duration:</span> {{ analysis_duration_parser }}s</p>
+              {% endif %}
+              {% if analysis_duration_matching and analysis_duration_matching != "N/A" %}
+                <p class="mb-0"><span class="inv-label">GL Matching Duration:</span> {{ analysis_duration_matching }}s</p>
+              {% endif %}
+              {% if analysis_duration_total and analysis_duration_total != "N/A" %}
+                <p class="mb-1 fw-semibold"><span class="inv-label">Total Analysis Duration:</span> {{ analysis_duration_total }}s</p>
+              {% endif %}
+            </div>
+          </div>
+        {% endif %}
+
+        {# 2. Candidate GL Accounts (cand_rows) #}
+        {% if cand_rows %}
+          <div class="inv-divider my-3"></div>
+          <div class="mb-3">
+            <h5 class="inv-section-title" style="font-size: 1rem;">Candidate GL Accounts for Matching (<code>cand_rows</code>)</h5>
+            <p class="small text-muted">{{ cand_rows|length }} item{{ cand_rows|length|pluralize }} found.</p>
+            <div class="fixed-header-container" style="padding-right: 17px;">
+              <div style="display: table; width: 100%; table-layout: fixed; font-size: 0.85em; background-color: #e9ecef;">
+                <div style="display: table-cell; width: 15%; padding: .35rem .55rem; border-bottom: 1px solid #dee2e6; font-weight: bold;">Code</div>
+                <div style="display: table-cell; width: 55%; padding: .35rem .55rem; border-bottom: 1px solid #dee2e6; font-weight: bold;">Description</div>
+                <div style="display: table-cell; width: 30%; padding: .35rem .55rem; border-bottom: 1px solid #dee2e6; font-weight: bold;">Category</div>
+              </div>
+            </div>
+            <div class="debug-section p-2" style="max-height: 210px; overflow-y: auto; border: 1px solid #dee2e6; margin-top: -1px;">
+              <table class="table table-sm table-hover table-striped" style="font-size: 0.85em; margin-bottom: 0; table-layout: fixed;">
+                <tbody style="display: table; width: 100%; table-layout: fixed;">
+                  {% for item_row in cand_rows %}
+                  <tr style="display: table-row;">
+                    <td style="display: table-cell; width: 15%; padding: .35rem .55rem;">{{ item_row.code|default:"N/A" }}</td>
+                    <td style="display: table-cell; width: 55%; padding: .35rem .55rem;">{{ item_row.desc|default:"N/A" }}</td>
+                    <td style="display: table-cell; width: 30%; padding: .35rem .55rem;">{{ item_row.category|default:"N/A" }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        {% endif %} {# cand_rows is not None and cand_rows|length == 0 부분은 특별히 표시할 내용 없으면 생략 가능 #}
+
+
+        {% if parsed_data_json %}
+          <div class="debug-section-item mb-3">
+            <div class="flex justify-between items-center mb-1">
+              <h5 class="text-md font-semibold text-gray-600 mb-0">Full Parsed JSON</h5>
+              {# Tailwind CSS를 사용한 버튼 스타일링 #}
+              <button id="copyFullJsonButtonDebugPanel"
+                      class="flex items-center px-2 py-1 border border-gray-300 rounded-md text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-150">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-clipboard mr-1" viewBox="0 0 16 16"> {# Tailwind: mr-1 로 오른쪽 마진 #}
+                  <path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/>
+                  <path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/>
+                </svg>
+                <span>Copy</span>
+              </button>
+            </div>
+            <pre class="small p-2" style="max-height: 300px; overflow: auto; border: 1px solid #e0e0e0; background-color: #fff; white-space: pre; word-break: break-all;"><code id="fullParsedJsonTextDebugPanel">{{ parsed_data_json }}</code></pre>
+          </div>
+        {% endif %}
+
+    </div> {# 이전에 .collapse #debugDetailsCollapse 였던 div의 끝 #}
+  </div>
+{% else %}
+  <div class="inv-card p-3 mt-4">
+      <p class="text-muted text-center my-3">No debugging information available.</p>
+  </div>
+{% endif %}

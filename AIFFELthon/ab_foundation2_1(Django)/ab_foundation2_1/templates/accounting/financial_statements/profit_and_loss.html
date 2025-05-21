@@ -1,0 +1,212 @@
+{# templates/accounting/financial_statements/profit_and_loss.html (가정) #}
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Profit & Loss Statement{% endblock title %}
+
+{% block content %}
+<style>
+  /* 이 콘텐츠 영역에만 적용될 스타일 */
+  /* .statement-header-card, .table-card 등 공통 카드 스타일은 base.css나 별도 파일로 분리하는 것이 좋음 */
+  /* 여기서는 이 페이지에만 필요한 스타일 또는 재정의 스타일 위주로 남김 */
+
+  .statement-table-container table { /* 테이블 공통 스타일 */
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 0; /* 카드 내부에 있으므로 하단 마진은 카드 div에서 처리 */
+    /* box-shadow는 카드 div에서 처리 */
+    background-color: #fff; /* 테이블 배경색 */
+  }
+  .statement-table-container th,
+  .statement-table-container td {
+    border: 1px solid #e2e8f0; /* Tailwind gray-300 느낌 */
+    padding: 0.75rem 1rem;   /* Tailwind p-3 p-4 느낌 */
+    text-align: center;
+    white-space: nowrap; /* 셀 내용 줄바꿈 방지 */
+  }
+  .statement-table-container th {
+    background-color: #f9fafb; /* Tailwind gray-50 느낌 */
+    color: #374151;       /* Tailwind gray-700 느낌 */
+    font-weight: 600;
+    /* 스크롤 시 헤더 고정이 필요하다면 position: sticky; top: 0; z-index: 10; 등을 추가 */
+  }
+  .statement-table-container td.left {
+    text-align: left;
+  }
+  .statement-table-container .total-row {
+    font-weight: bold;
+    background-color: #eff6ff; /* Tailwind blue-50 느낌 */
+  }
+
+  .table-scroll-wrapper { /* 스크롤 래퍼 스타일 */
+    overflow-x: auto;
+    max-height: 550px; /* 예시 높이, 필요에 따라 조절 (Financial Position과 동일하게 또는 다르게) */
+    /* border: 1px solid #e2e8f0; /* 스크롤 영역 테두리 (선택 사항) */ */
+    /* border-radius: 0.375rem; /* 스크롤 영역 모서리 둥글게 (선택 사항) */ */
+  }
+</style>
+
+{# 페이지 헤더 카드 #}
+<div class="bg-white shadow rounded-lg p-6 mb-6">
+  <div class="flex items-center">
+    <div class="p-2 bg-purple-100 rounded-full mr-4">
+      {# 손익계산서 관련 아이콘 (예: Heroicons - chart-bar 또는 presentation-chart-line) #}
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 text-purple-600">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+      </svg>
+    </div>
+    <h1 class="text-2xl font-semibold text-gray-800">Profit & Loss Statement</h1>
+  </div>
+  {# 여기에 추가적인 설명이나 필터 등을 배치할 수 있습니다. #}
+</div>
+
+{# 테이블들을 담는 컨테이너 (스타일 적용용) #}
+<div class="statement-table-container">
+  <div class="mb-8 p-4 bg-white rounded-lg shadow">
+    <h3 class="text-lg font-semibold text-gray-700 mb-3">Summary Information</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Company Code</th>
+          <th>Ledger</th>
+          <th>Statement</th>
+          <th>Accounting Year</th>
+          <th>Comparison Year</th>
+          <th>Display 1</th>
+          <th>Display 2</th>
+          <th>Currency</th>
+          <th>Language</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>15688</td>
+          <td>IFRS</td>
+          <td>Profit or Loss</td>
+          <td>2025</td>
+          <td>2024</td>
+          <td>Monthly</td>
+          <td>Month to Month</td>
+          <td>EUR</td>
+          <td>EN</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="p-4 bg-white rounded-lg shadow">
+    <h3 class="text-lg font-semibold text-gray-700 mb-3">Financial Data</h3>
+    <div class="table-scroll-wrapper">
+      <table class="min-w-full">
+        <thead>
+          <tr>
+            <th rowspan="2">Classification</th>
+            <th rowspan="2">Category</th>
+            <th rowspan="2">Account</th>
+            <th colspan="2">Jan</th>
+            <th colspan="2">Feb</th>
+            <th colspan="2">Year-to-End</th>
+          </tr>
+          <tr>
+            <th>2025</th>
+            <th>2024</th>
+            <th>2025</th>
+            <th>2024</th>
+            <th>2025</th>
+            <th>2024</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td rowspan="3">Revenue</td>
+            <td rowspan="2">Product Sales</td>
+            <td class="left">400100 - Domestic Sales</td>
+            <td>10,000</td>
+            <td>9,800</td>
+            <td>12,000</td>
+            <td>11,500</td>
+            <td>22,000</td>
+            <td>21,300</td>
+          </tr>
+          <tr>
+            <td class="left">400200 - Export Sales</td>
+            <td>2,000</td>
+            <td>1,800</td>
+            <td>3,000</td>
+            <td>2,800</td>
+            <td>5,000</td>
+            <td>4,600</td>
+          </tr>
+          <tr class="total-row">
+            <td rowspan="1">Product Sales Total</td> {# Classification은 Revenue에서 rowspan 적용됨 #}
+            <td></td> {# Category 열 #}
+            <td></td> {# Account 열 #}
+            <td>12,000</td>
+            <td>11,600</td>
+            <td>15,000</td>
+            <td>14,300</td>
+            <td>27,000</td>
+            <td>25,900</td>
+          </tr>
+          <tr>
+            {# rowspan=2가 Revenue에 다시 적용되면 Classification 열이 중복 표시될 수 있으므로, #}
+            {# 이미 Revenue 그룹 내에 있다면 rowspan 없이 Category부터 시작하거나, 구조를 재확인해야 합니다. #}
+            {# 여기서는 이전 구조를 따르되, rowspan이 적용된 첫 번째 Classification 셀만 유효하다고 가정합니다. #}
+            <td rowspan="2"></td> {# Revenue의 rowspan이 이 행까지 미치므로 빈 칸으로 처리 or 이전 td의 rowspan 조정 #}
+            <td>Service Income</td>
+            <td class="left">410100 - Consulting</td>
+            <td>3,000</td>
+            <td>2,500</td>
+            <td>2,500</td>
+            <td>2,300</td>
+            <td>5,500</td>
+            <td>4,800</td>
+          </tr>
+          <tr class="total-row">
+            <td rowspan="1">Service Income Total</td> {# Classification은 Revenue에서 rowspan 적용됨 #}
+            <td></td> {# Category 열 #}
+            <td></td> {# Account 열 #}
+            <td>3,000</td>
+            <td>2,500</td>
+            <td>2,500</td>
+            <td>2,300</td>
+            <td>5,500</td>
+            <td>4,800</td>
+          </tr>
+          <tr class="total-row">
+            <td colspan="2">Revenue Total</td> {# Classification과 Category를 합침 #}
+            <td></td> {# Account 열 #}
+            <td>15,000</td>
+            <td>14,100</td>
+            <td>17,500</td>
+            <td>16,600</td>
+            <td>32,500</td>
+            <td>30,700</td>
+          </tr>
+          {# --- 여기에 COGS, Operating Expenses, Other Income, Income Tax, Profit After Tax 등 나머지 데이터가 와야 합니다. --- #}
+          {# --- 예시: --- #}
+          {# COGS #}
+          {# <tr> #}
+          {#   <td>COGS</td> #}
+          {#   <td>Materials</td> #}
+          {#   <td class="left">500100 - Raw Materials</td> #}
+          {#   <td>5,000</td><td>4,800</td><td>6,000</td><td>5,900</td><td>11,000</td><td>10,700</td> #}
+          {# </tr> #}
+          {# <tr class="total-row"> #}
+          {#   <td colspan="2">COGS Total</td> #}
+          {#   <td></td> #}
+          {#   <td>5,000</td><td>4,800</td><td>6,000</td><td>5,900</td><td>11,000</td><td>10,700</td> #}
+          {# </tr> #}
+          {# Gross Margin #}
+          {# <tr class="total-row"> #}
+          {#   <td colspan="2">Gross Margin</td> #}
+          {#   <td></td> #}
+          {#   <td>10,000</td><td>9,300</td><td>11,500</td><td>10,700</td><td>21,500</td><td>20,000</td> #}
+          {# </tr> #}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% endblock content %}

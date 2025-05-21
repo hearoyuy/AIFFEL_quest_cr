@@ -1,0 +1,61 @@
+<aside id="sidebar"
+       class="fixed inset-y-0 left-0 z-30 flex flex-col w-64 bg-white shadow-lg
+              transform -translate-x-full md:translate-x-0 transition-transform">
+
+  <div class="h-16 flex items-center px-4 border-b">
+    <span class="font-bold text-xl flex-1">AB_Foundation</span>
+    <button id="btnClose" class="text-xl md:block">❮</button>
+  </div>
+
+  <nav class="flex-1 overflow-y-auto px-2 py-4 space-y-1">
+    <a href="/"
+       class="flex items-center px-2 py-2 rounded-md hover:bg-gray-100 cursor-pointer">
+      <span class="mr-2">🏠</span>
+      <span>Dashboard</span>
+    </a>
+    <a href="/upload/"
+       class="flex items-center px-2 py-2 rounded-md hover:bg-gray-100 cursor-pointer">
+      <span class="mr-2">📤</span>
+      <span>Upload</span>
+    </a>
+    <a href="/parser/"
+       class="flex items-center px-2 py-2 rounded-md hover:bg-gray-100 cursor-pointer">
+      <span class="mr-2">⚙️</span>
+      <span>Parser</span>
+    </a>
+    <a href="/journal/"
+       class="flex items-center px-2 py-2 rounded-md hover:bg-gray-100 cursor-pointer">
+      <span class="mr-2">📒</span>
+      <span>Journal</span>
+    </a>
+
+    {# --- Statements 메뉴 상태 유지를 위한 Alpine.js 수정 --- #}
+    <div x-data="{ open: JSON.parse(localStorage.getItem('statementsMenuOpen') || 'false') }"
+         x-init="$watch('open', value => localStorage.setItem('statementsMenuOpen', JSON.stringify(value)))">
+      <button @click="open = !open"
+              class="w-full flex items-center justify-between px-2 py-2 rounded-md hover:bg-gray-100 cursor-pointer text-left">
+        <span class="flex items-center">
+          <span class="mr-2">📊</span>
+          <span>Statements</span>
+        </span>
+        <svg :class="{'transform rotate-180': open}" class="w-5 h-5 transition-transform duration-200" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
+      </button>
+      <ul x-show="open" x-transition class="pl-4 mt-1 space-y-1">
+        <li>
+          <a href="/profit-and-loss/"
+             class="flex items-start px-2 py-2 rounded-md hover:bg-gray-100 cursor-pointer">
+            <span class="mr-2 mt-1 shrink-0">📈</span>
+            <span>Profit and Loss Statement</span>
+          </a>
+        </li>
+        <li>
+          <a href="/financial-position/"
+             class="flex items-start px-2 py-2 rounded-md hover:bg-gray-100 cursor-pointer">
+            <span class="mr-2 mt-1 shrink-0">⚖️</span>
+            <span>Financial Position</span>
+          </a>
+        </li>
+      </ul>
+    </div>
+  </nav>
+</aside>

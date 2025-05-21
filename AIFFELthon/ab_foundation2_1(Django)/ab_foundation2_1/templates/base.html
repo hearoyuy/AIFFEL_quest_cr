@@ -1,0 +1,39 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>{% block title %}AI‑Accounting{% endblock %}</title>
+
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- HTMX -->
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+  <!-- Sidebar toggle -->
+  <script src="{% static 'js/sidebar.js' %}" defer></script>
+
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+
+<body class="h-screen flex overflow-hidden bg-gray-50">
+  <!-- 열기 버튼: 처음엔 데스크톱에서 숨김, 모바일에서는 보임 -->
+  <button id="btnOpen"
+        class="fixed top-4 left-4 z-30 text-2xl p-2 rounded shadow block">☰</button>
+
+
+  <!--          ^^^^^^^       ^^^^^^^^^^^
+       기본 hidden  , 모바일엔 block , 데스크톱엔 hidden → JS로 풀어줍니다
+  -->
+
+  <!-- 사이드바 -->
+  {% include "components/sidebar.html" %}
+
+  <!-- 메인 -->
+  <div id="mainWrapper" class="flex-1 overflow-y-auto p-6 pt-16">
+     <div class="max-w-screen-xl mx-auto px-6">
+      {% block content %}{% endblock %}
+     </div>
+  </div>
+</body>
+
+</html>

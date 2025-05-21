@@ -1,0 +1,261 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto pt-10">
+  <div id="capturePanel" class="bg-white shadow-xl rounded-2xl p-8"> {# 캡처할 전체 패널에 ID 부여 #}
+      <div class="flex items-center gap-3 mb-6">
+          <div class="w-10 h-10 flex items-center justify-center bg-indigo-100 text-indigo-600 rounded-full">⚙️</div>
+          <h2 class="text-xl font-bold">Parser 작업</h2>
+      </div>
+      <p class="text-sm text-gray-600 mb-2">작업 대기 중인 파일</p>
+
+      <div class="flex flex-col sm:flex-row gap-4 items-center">
+          <select id="pendingSelect" name="file_id"
+                  class="flex-1 border-gray-300 rounded-lg px-4 py-2 focus:ring-indigo-500 w-full sm:w-auto min-w-0">
+              {% for f in unprocessed_files %}
+                <option value="{{ f.id }}" title="{{ f.new_filename|default:f.original_filename }}">
+                    {{ f.new_filename|default:f.original_filename|truncatechars:50 }}
+                </option>
+              {% empty %}
+                <option value="">대기 중인 파일이 없습니다</option>
+              {% endfor %}
+          </select>
+
+          <button id="btnParse"
+                  {% if not unprocessed_files %}disabled{% endif %}
+                  hx-post="{% url 'parse_invoice' %}"
+                  hx-include="#pendingSelect"
+                  hx-target="#resultZone"
+                  hx-swap="innerHTML"
+                  hx-headers='{"X-CSRFToken":"{{ csrf_token }}"}'
+                  hx-indicator="#btnParseSpinner"
+                  hx-on:htmx:before-request="document.getElementById('resultZone').innerHTML = ''; document.getElementById('downloadImageBtnContainer').style.display = 'none';"
+                  class="whitespace-nowrap px-6 py-2.5 rounded-lg font-medium text-white
+                         bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 transition">
+              ▶ 파서 실행
+          </button>
+      </div>
+
+      <div id="btnParseSpinner"
+           class="htmx-indicator w-full mt-4 flex justify-center items-center gap-2
+                  text-indigo-600 text-sm">
+        <svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" opacity=".25"/>
+          <path d="M22 12a10 10 0 0 1-10 10"
+                stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+        </svg>
+        분석중… <span id="elapsed">0.0s</span>
+      </div>
+
+      <div id="resultZone" class="mt-6">
+          {# HTMX에 의해 파싱 결과가 여기에 로드됩니다. #}
+      </div>
+
+      <div id="downloadImageBtnContainer" class="mt-6 text-center" style="display: none;">
+        <button id="downloadResultImageBtn"
+                class="px-6 py-2.5 rounded-lg font-medium text-white bg-green-600 hover:bg-green-700 transition">
+            결과 이미지로 저장
+        </button>
+      </div>
+
+      {% if not unprocessed_files %}
+      <p class="text-gray-500 text-sm mt-6">현재 처리할 파일이 없습니다. 먼저 업로드하세요.</p>
+      {% endif %}
+
+  </div>
+</div>
+
+<style>
+  .htmx-indicator{
+    display: none;
+  }
+  .htmx-indicator.htmx-request,
+  .htmx-indicator.htmx-swapping,
+  .htmx-indicator.htmx-settling{
+    display: flex !important;
+  }
+  #resultZone .debug-section pre {
+    overflow-x: auto;
+    white-space: pre;
+  }
+</style>
+
+{# html2canvas 라이브러리 로드 - integrity 및 crossorigin 속성 제거됨 #}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+<script>
+(() => {
+  const spinner = document.getElementById('btnParseSpinner');
+  const elapsed = document.getElementById('elapsed');
+  let start = 0, timerId = null;
+
+  new MutationObserver(() => {
+      const busy = spinner.classList.contains('htmx-request') ||
+                   spinner.classList.contains('htmx-swapping') ||
+                   spinner.classList.contains('htmx-settling');
+
+      if (busy && !timerId) {
+          start = Date.now();
+          elapsed.textContent = '0.0s';
+          timerId = setInterval(() => {
+              elapsed.textContent = ((Date.now() - start) / 1000).toFixed(1) + 's';
+          }, 100);
+      } else if (!busy && timerId) {
+          clearInterval(timerId);
+          timerId = null;
+          elapsed.textContent = '총 ' + ((Date.now() - start) / 1000).toFixed(1) + 's';
+      }
+  }).observe(spinner, {attributes: true, attributeFilter: ['class']});
+
+
+  // 이미지 다운로드 버튼 로직
+  const downloadButton = document.getElementById('downloadResultImageBtn');
+  const downloadButtonContainer = document.getElementById('downloadImageBtnContainer');
+  const captureElement = document.getElementById('capturePanel');
+
+  if (downloadButton && captureElement) {
+    downloadButton.addEventListener('click', function() {
+        const originalButtonText = downloadButton.innerHTML;
+        downloadButton.innerHTML = '이미지 생성 중...';
+        downloadButton.disabled = true;
+
+        // html2canvas 함수가 정의되어 있는지 먼저 확인 (오류 방지)
+        if (typeof html2canvas === 'undefined') {
+            console.error("html2canvas is not loaded or not defined!");
+            alert("이미지 생성 기능을 사용할 수 없습니다. (라이브러리 로드 실패)");
+            downloadButton.innerHTML = originalButtonText;
+            downloadButton.disabled = false;
+            return;
+        }
+
+        html2canvas(captureElement, {
+            useCORS: true,
+            scale: 1.5,
+            logging: true,
+            onclone: function(clonedDoc) {
+                const jsonPreElement = clonedDoc.querySelector('#resultZone #fullParsedJsonTextDebugPanel');
+                if (jsonPreElement) {
+                    console.log("Found fullParsedJsonTextDebugPanel in clonedDoc for styling.");
+                    jsonPreElement.style.maxHeight = 'none';
+                    jsonPreElement.style.height = 'auto';
+                    jsonPreElement.style.overflow = 'visible';
+                } else {
+                    console.warn("Could not find #fullParsedJsonTextDebugPanel in clonedDoc. JSON may be cut.");
+                }
+            }
+        }).then(canvas => {
+            const imageDataURL = canvas.toDataURL('image/png');
+            const downloadLink = document.createElement('a');
+            downloadLink.href = imageDataURL;
+
+            const selectedFileOption = document.getElementById('pendingSelect').selectedOptions[0];
+            let filenamePrefix = "parsing_result";
+            if (selectedFileOption && selectedFileOption.textContent.trim() !== "대기 중인 파일이 없습니다") {
+                filenamePrefix = selectedFileOption.textContent.trim().replace(/\.\.\.$/, '').replace(/[^a-zA-Z0-9-_]/g, '_');
+            }
+            downloadLink.download = `${filenamePrefix}.png`;
+
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+
+            downloadButton.innerHTML = originalButtonText;
+            downloadButton.disabled = false;
+        }).catch(error => {
+            console.error('이미지 생성 중 오류 발생:', error);
+            alert('파싱 결과 이미지 생성에 실패했습니다.');
+            downloadButton.innerHTML = originalButtonText;
+            downloadButton.disabled = false;
+        });
+    });
+  } else {
+      if (!downloadButton) console.error("Download button 'downloadResultImageBtn' not found.");
+      if (!captureElement) console.error("Capture element 'capturePanel' not found.");
+  }
+
+})();
+
+// JSON 복사 기능 (이전과 동일)
+function initializeJsonCopyButton(buttonId, textElementId) {
+  const copyButton = document.getElementById(buttonId);
+  const jsonTextElement = document.getElementById(textElementId);
+
+  function showCopiedFeedback(button, message = "Copied!") {
+    const originalButtonHTML = button.innerHTML;
+    button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-check-lg mr-1" viewBox="0 0 16 16"><path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425a.247.247 0 0 1 .02-.022z"/></svg><span>${message}</span>`;
+    button.disabled = true;
+    setTimeout(function() {
+      button.innerHTML = originalButtonHTML;
+      button.disabled = false;
+    }, 2000);
+  }
+
+  function fallbackCopyTextToClipboard(textToCopy, button) {
+    const textArea = document.createElement("textarea");
+    textArea.value = textToCopy.trim();
+    textArea.style.position = "fixed"; textArea.style.top = "0"; textArea.style.left = "-9999px";
+    document.body.appendChild(textArea);
+    textArea.focus(); textArea.select();
+    try {
+      const successful = document.execCommand('copy');
+      if (successful) {
+        showCopiedFeedback(button, 'Copied! (fallback)');
+      } else {
+        console.error('Fallback: execCommand was not successful');
+        alert('Failed to copy JSON. Please copy manually (Ctrl+C / Cmd+C).');
+      }
+    } catch (err) {
+      console.error('Fallback: Oops, unable to copy', err);
+      alert('Failed to copy JSON. Please copy manually (Ctrl+C / Cmd+C).');
+    }
+    document.body.removeChild(textArea);
+  }
+
+  if (copyButton && jsonTextElement) {
+    const clickHandler = function() {
+      const jsonTextToCopy = (jsonTextElement.textContent || jsonTextElement.innerText || "").trim();
+      if (!jsonTextToCopy) {
+        const originalButtonHTML = copyButton.innerHTML;
+        copyButton.innerHTML = 'Nothing to copy!';
+        copyButton.disabled = true;
+        setTimeout(function() {
+            copyButton.innerHTML = originalButtonHTML;
+            copyButton.disabled = false;
+        }, 1500);
+        return;
+      }
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(jsonTextToCopy).then(function() {
+          showCopiedFeedback(copyButton);
+        }).catch(function(err) {
+          console.error('Clipboard API failed: ', err);
+          fallbackCopyTextToClipboard(jsonTextToCopy, copyButton);
+        });
+      } else {
+        console.warn('Clipboard API not available, using fallback.');
+        fallbackCopyTextToClipboard(jsonTextToCopy, copyButton);
+      }
+    };
+    copyButton.onclick = null;
+    copyButton.addEventListener('click', clickHandler);
+  } else {
+    if (!copyButton) console.error(`Copy button ('${buttonId}') not found in current DOM.`);
+    if (!jsonTextElement) console.error(`JSON text element ('${textElementId}') not found in current DOM.`);
+  }
+}
+
+document.body.addEventListener('htmx:afterSwap', function(event) {
+  if (event.detail.target.id === 'resultZone') {
+    console.log("htmx:afterSwap triggered for #resultZone.");
+    if (document.getElementById('resultZone').innerHTML.trim() !== "") {
+        document.getElementById('downloadImageBtnContainer').style.display = 'block';
+    } else {
+        document.getElementById('downloadImageBtnContainer').style.display = 'none';
+    }
+    initializeJsonCopyButton('copyFullJsonButtonDebugPanel', 'fullParsedJsonTextDebugPanel');
+  }
+});
+</script>
+{% endblock %}

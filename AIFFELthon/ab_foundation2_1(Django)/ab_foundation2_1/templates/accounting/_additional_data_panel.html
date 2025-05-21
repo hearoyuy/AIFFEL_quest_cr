@@ -1,0 +1,68 @@
+{# accounting/templates/accounting/_additional_data_panel.html #}
+{% if doc.additional_data or issuer.additional_data or receiver.additional_data or line_items_with_additional_data %}
+  <div class="inv-divider mt-3"></div>
+  <div class="mb-3">
+    {# 토글 제목 대신 일반 제목으로 변경 #}
+    <h6 class="inv-section-title">
+      Additional Parsed Data (Not in Schema)
+    </h6>
+    {# collapse 클래스 제거 및 항상 보이도록 수정 #}
+    <div class="card card-body small bg-light mt-2">
+      {% if doc.additional_data %}
+        <div class="mb-2">
+          <strong>Document Level:</strong>
+          {# pprint 필터가 없다면, 또는 단순 표시를 원한다면 아래와 같이 변경 가능 #}
+          {# <pre class="mb-0" style="font-size: 0.85em; white-space: pre-wrap; word-wrap: break-word;">{{ doc.additional_data }}</pre> #}
+          <ul class="list-unstyled mb-0" style="font-size: 0.85em;">
+            {% for key, value in doc.additional_data.items %}
+              <li><span class="inv-label">{{ key|capfirst }}:</span> {{ value }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+
+      {% if issuer.additional_data %}
+        <div class="mb-2">
+          <strong>Issuer Level:</strong>
+          <ul class="list-unstyled mb-0" style="font-size: 0.85em;">
+            {% for key, value in issuer.additional_data.items %}
+              <li><span class="inv-label">{{ key|capfirst }}:</span> {{ value }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+
+      {% if receiver.additional_data %}
+        <div class="mb-2">
+          <strong>Receiver Level:</strong>
+          <ul class="list-unstyled mb-0" style="font-size: 0.85em;">
+            {% for key, value in receiver.additional_data.items %}
+              <li><span class="inv-label">{{ key|capfirst }}:</span> {{ value }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+
+      {% if line_items_with_additional_data %}
+        <div class="mb-2">
+          <strong>Line Item Level:</strong>
+          {% for item_info in line_items_with_additional_data %}
+            <div class="ms-2 mt-1">
+              Item {{ item_info.line_item_id|default:"N/A" }} ({{ item_info.article_name|truncatechars:30|default:"Unnamed" }}):
+              <ul class="list-unstyled mb-0 ps-2" style="font-size: 0.85em;">
+                {% for key, value in item_info.additional_data.items %}
+                  <li><span class="inv-label">{{ key|capfirst }}:</span> {{ value }}</li>
+                {% endfor %}
+              </ul>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      {# 모든 additional_data가 비어 있을 경우를 대비한 메시지 (선택적) #}
+      {% if not doc.additional_data and not issuer.additional_data and not receiver.additional_data and not line_items_with_additional_data %}
+        <p class="text-muted mb-0">No additional data found.</p>
+      {% endif %}
+    </div>
+  </div>
+{% endif %}

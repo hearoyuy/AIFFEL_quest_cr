@@ -1,0 +1,243 @@
+{% load static %}
+<style>
+  .inv-card{border:1px solid #e5e7eb;border-radius:1rem;box-shadow:0 1px 2px rgb(0 0 0 / 6%);}
+  .inv-header-icon{font-size:1.2rem;margin-right:.4rem;opacity:.6}
+  .inv-divider{border-top:1px solid #e5e7eb;margin:1.25rem 0;}
+  .inv-section-title{font-weight:600;margin-bottom:.25rem;} /* 기존 .5rem 에서 .25rem으로 변경하여 제목과 내용 간격 축소 */
+  .inv-label{font-weight:600;}
+  .table-items thead{background:#f9fafb;font-size:.85rem;}
+  .table-items td,.table-items th{padding:.35rem .55rem;}
+  .info-block p { margin-bottom: 0.35rem; } /* 정보 블록 내 p 태그 간격 조정 */
+</style>
+
+{# --- SAVE RESULT ALERT (최상단) --- #}
+{% if save_result == "success" %}
+  <div class="alert alert-success" style="border-radius:0.75rem; margin-bottom:1rem; font-weight:600; background:#e7f7ee; color:#277a53; border:1px solid #bbe6d1;">
+    ✅ {{ save_status|safe }}
+  </div>
+{% elif save_result == "duplicate" %}
+  <div class="alert alert-warning" style="border-radius:0.75rem; margin-bottom:1rem; font-weight:600; background:#fff8e1; color:#9e7700; border:1px solid #ffe6b3;">
+    ⚠️ {{ save_status|safe }}
+  </div>
+{% elif save_result == "partial_duplicate" %}
+  <div class="alert alert-info" style="border-radius:0.75rem; margin-bottom:1rem; font-weight:600; background:#e7ecf7; color:#0058a3; border:1px solid #bad2fa;">
+    ℹ️ {{ save_status|safe }}
+  </div>
+{% endif %}
+
+
+<div class="inv-card p-4 mb-4">
+  {# --- DOCUMENT HEADER --- #}
+  <div class="d-flex align-items-center mb-2" style="font-weight:600;">
+    <span class="inv-header-icon">🧾</span>
+    <span>Invoice&nbsp;#{{ doc.invoice_no|default:"–" }}</span>
+    {% if doc.issuance_date %}
+      &nbsp;<small class="text-muted">({{ doc.issuance_date }})</small>
+    {% endif %}
+  </div>
+  {% if doc.transaction_summary %}
+    <p class="small text-muted mb-3 fst-italic">Summary: {{ doc.transaction_summary }}</p>
+  {% endif %}
+
+  {# --- ISSUER INFO --- #}
+  {% if issuer %}
+    <div class="inv-section-title">
+      {% if main_trading_partner_role == "receiver" %}Issued by:{% else %}Supplier / Issuer:{% endif %}
+    </div>
+    <div class="small text-muted mb-3 info-block">
+      <p><strong>{{ issuer.name|default:"–" }}</strong></p>
+      {% if issuer.address %}<p>{{ issuer.address }}</p>{% endif %}
+      {% if issuer.phone %}<p><span class="inv-label">Tel:</span> {{ issuer.phone }}</p>{% endif %}
+      {% if issuer.email %}<p><span class="inv-label">Email:</span> {{ issuer.email }}</p>{% endif %}
+      {% if issuer.vat_no %}<p><span class="inv-label">VAT No:</span> {{ issuer.vat_no }}</p>{% endif %}
+      {% if issuer.tax_no %}<p><span class="inv-label">Tax No:</span> {{ issuer.tax_no }}</p>{% endif %}
+      {% if issuer.regi_no %}<p><span class="inv-label">Reg. No:</span> {{ issuer.regi_no }}</p>{% endif %}
+    </div>
+  {% endif %}
+
+  {# --- COA CODES & SUGGESTED GL --- #}
+  {% if codes or match %}
+    <div class="inv-divider"></div>
+    <div class="row">
+      {% if codes %}
+        <div class="col-sm-6 mb-2">
+          <div class="inv-section-title">Selected&nbsp;COA&nbsp;Codes</div>
+          <p class="small mb-0">
+            {% for code_item in codes %}
+              {{ code_item }}{% if not forloop.last %}, {% endif %}
+            {% endfor %}
+          </p>
+        </div>
+      {% endif %}
+      {% if match and match.primary %}
+        <div class="col-sm-6 mb-2">
+          <div class="inv-section-title">Suggested&nbsp;GL&nbsp;Account</div>
+          <p class="small mb-1">
+            <b>{{ match.primary.code }}</b>
+            {% if match.primary.desc %} – {{ match.primary.desc }}{% endif %}
+            ({{ match.primary.prob }}%)
+          </p>
+          {% if match.secondary %}
+            <p class="small mb-0">
+              <b>{{ match.secondary.code }}</b>
+              {% if match.secondary.desc %} – {{ match.secondary.desc }}{% endif %}
+              ({{ match.secondary.prob }}%)
+            </p>
+          {% endif %}
+          {% if match.tertiary %}
+            <p class="small mb-0">
+              <b>{{ match.tertiary.code }}</b>
+              {% if match.tertiary.desc %} – {{ match.tertiary.desc }}{% endif %}
+              ({{ match.tertiary.prob }}%)
+            </p>
+          {% endif %}
+        </div>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  {# --- DOCUMENT & ACCOUNTING DETAILS --- #}
+  <div class="inv-divider"></div>
+  <div class="row small mb-3">
+    <div class="col-md-6 mb-sm-2 info-block">
+      <div class="inv-section-title">Document Details</div>
+      {% if doc.document_type %}<p><span class="inv-label">Type (Parsed):</span> {{ doc.document_type }}</p>{% endif %}
+      {% if doc.accounting_transaction_doc_type %}<p><span class="inv-label">Type (Acct.):</span> {{ doc.accounting_transaction_doc_type }}</p>{% endif %}
+      {% if doc.reference_no %}<p><span class="inv-label">Reference No:</span> {{ doc.reference_no }}</p>{% endif %}
+      {% if doc.internal_order_no %}<p><span class="inv-label">Internal Order:</span> {{ doc.internal_order_no }}</p>{% endif %}
+      {% if doc.external_order_no %}<p><span class="inv-label">External Order:</span> {{ doc.external_order_no }}</p>{% endif %}
+      {% if doc.payment_terms %}<p><span class="inv-label">Payment Terms:</span> {{ doc.payment_terms }}</p>{% endif %}
+    </div>
+    <div class="col-md-6 info-block">
+      <div class="inv-section-title">Key Dates & Accounting Info</div>
+      {% if doc.service_date %}<p><span class="inv-label">Service Date:</span> {{ doc.service_date }}</p>{% endif %}
+      {% if doc.delivery_date %}<p><span class="inv-label">Delivery Date:</span> {{ doc.delivery_date }}</p>{% endif %}
+      {% if doc.due_date %}<p><span class="inv-label">Due Date:</span> {{ doc.due_date }}</p>{% endif %}
+      {% if doc.booking_date %}<p><span class="inv-label">Booking Date:</span> {{ doc.booking_date }}</p>{% endif %}
+      {% if doc.booking_document_no %}<p><span class="inv-label">Booking No:</span> {{ doc.booking_document_no }}</p>{% endif %}
+      {% if doc.closing_period %}<p><span class="inv-label">Closing Period:</span> {{ doc.closing_period }}</p>{% endif %}
+      {% if doc.ledger_standard %}<p><span class="inv-label">Ledger:</span> {{ doc.get_ledger_standard_display|default:doc.ledger_standard }}</p>{% endif %}
+    </div>
+  </div>
+
+
+  {# --- RECEIVER INFO --- #}
+  {% if receiver %}
+  <div class="inv-divider"></div>
+  <div class="inv-section-title">Billing&nbsp;To (Receiver)</div>
+  <div class="info-block">
+    <p class="mb-1">{{ receiver.name|default:"–" }}</p>
+    {% if receiver.contact_person_name %}
+      <p class="mb-1">{{ receiver.contact_person_name }}</p>
+    {% endif %}
+    <p class="mb-1">{{ receiver.address|default:"–" }}</p>
+    {% if receiver.regi_no %}
+      <p class="mb-1"><span class="inv-label">Contract/Reg. No:</span> {{ receiver.regi_no }}</p>
+    {% endif %}
+    {% if receiver.phone %}
+      <p class="mb-1 small"><span class="inv-label">Tel:</span> {{ receiver.phone }}</p>
+    {% endif %}
+    {% if receiver.email %}
+      <p class="mb-1 small"><span class="inv-label">Email:</span> {{ receiver.email }}</p>
+    {% endif %}
+    {% if receiver.vat_no %}
+      <p class="mb-1 small"><span class="inv-label">VAT No:</span> {{ receiver.vat_no }}</p>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {# --- LINE ITEMS --- #}
+  <div class="inv-divider"></div>
+  <div class="inv-section-title">Items</div>
+  <table class="table table-sm table-items mb-3">
+    <thead>
+      <tr class="align-middle text-muted">
+        <th style="width:8%">Qty</th>
+        <th>Description</th>
+        <th class="text-end" style="width:18%">Unit&nbsp;Price</th>
+        <th class="text-end" style="width:20%">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in line_items %}
+      <tr>
+        <td>{{ item.quantity|default:"–" }}</td>
+        <td>{{ item.article_description|default:item.article_name|default:"–" }}</td>
+        <td class="text-end">{{ item.unit_price|default:"–" }}</td>
+        <td class="text-end">{{ item.amount|default:"–" }}</td> {# .net_amount fallback 제거 #}
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="4" class="text-center text-muted small">No items found.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {# --- TOTALS --- #}
+  {% if doc.total_due or doc.net_amount or doc.vat_amount %}
+    <div class="row justify-content-end small pe-1">
+      <div class="col-auto">
+        <table class="table table-borderless table-sm mb-3">
+          {% if doc.net_amount is not None %}<tr><th class="text-end">Net:</th><td class="text-end">{{ doc.net_amount }}</td></tr>{% endif %}
+          {% if doc.vat_amount is not None %}<tr><th class="text-end">VAT ({{ doc.vat_rate|default_if_none:"" }}%):</th><td class="text-end">{{ doc.vat_amount }}</td></tr>{% endif %}
+          {% if doc.total_due is not None %}
+          <tr style="border-top:1px solid #e5e7eb">
+            <th class="text-end">Total:</th>
+            <td class="text-end fw-semibold">{{ doc.total_due }}</td>
+          </tr>
+          {% endif %}
+        </table>
+      </div>
+    </div>
+  {% endif %}
+
+  {# --- RECEIVER BANK INFO --- #}
+  {% if receiver.bank_name or receiver.bank_iban or receiver.bank_account_no %}
+    <div class="inv-divider"></div>
+    <div class="inv-section-title">Payment&nbsp;Info (Receiver's Bank)</div>
+    <div class="small info-block">
+      {% if receiver.bank_name %}<p><span class="inv-label">Bank:</span> {{ receiver.bank_name }}</p>{% endif %}
+      <p><span class="inv-label">IBAN/Account:</span>
+        {% if receiver.bank_iban %}{{ receiver.bank_iban }}
+        {% elif receiver.bank_account_no %}{{ receiver.bank_account_no }}
+        {% else %}–{% endif %}
+      </p>
+      {% if receiver.bank_bic %}<p><span class="inv-label">BIC:</span> {{ receiver.bank_bic }}</p>{% endif %}
+      {% if receiver.bank_owner %}<p><span class="inv-label">Owner:</span> {{ receiver.bank_owner }}</p>{% endif %}
+    </div>
+  {% endif %}
+
+  {# --- MEMOS & ADDITIONAL INFO --- #}
+  {% if main_trading_partner_role or doc.cp_memo or doc.anomaly_memo or doc.prepayment is not None %}
+  <div class="inv-divider"></div>
+  <div class="small text-muted info-block">
+    {% if main_trading_partner_role %}
+      <p><span class="inv-label">Determined Main Partner Role:</span> {{ main_trading_partner_role }}</p>
+    {% endif %}
+    {% if doc.cp_memo %} {# main_trading_partner_role 결정 이유 등 #}
+      <p><span class="inv-label">Parser Memo:</span> {{ doc.cp_memo }}</p>
+    {% endif %}
+    {% if doc.anomaly_memo %}
+      <p class="text-danger"><span class="inv-label">Anomaly/Exception:</span> {{ doc.anomaly_memo }}</p>
+    {% endif %}
+    {% if doc.prepayment is not None %}
+        <p><span class="inv-label">Prepayment:</span> {{ doc.prepayment|yesno:"Yes,No" }}
+        {% if doc.prepayment and doc.prepaid_amount is not None %} (Amount: {{ doc.prepaid_amount }}){% endif %}
+        </p>
+    {% endif %}
+     {% if doc.price_discount is not None %}
+        <p><span class="inv-label">Discount:</span> {{ doc.price_discount }}
+        {% if doc.price_discount_terms %} (Terms: {{ doc.price_discount_terms }}){% endif %}
+        </p>
+    {% endif %}
+  </div>
+  {% endif %}
+
+</div>
+
+{# --- ADDITIONAL PARSED DATA PANEL (새로운 include) --- #}
+{% include "accounting/_additional_data_panel.html" %}
+
+{# 디버깅 패널은 그대로 유지 #}
+{% include "accounting/_debugging_details_panel.html" %}

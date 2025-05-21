@@ -1,0 +1,16 @@
+{# templates/admin/coa_change_list.html #}
+{% extends "admin/change_list.html" %}
+
+{% block object-tools-items %}
+  {# Import Excel 버튼 #}
+  <li>
+    <a href="{{ import_url }}" class="button">Import Excel</a>
+  </li>
+
+  {# ★ Rebuild Index 버튼 추가 #}
+  <li>
+    <a href="{{ rebuild_url }}" class="button">Rebuild Index</a>
+  </li>
+
+  {{ block.super }}  {# 기존 “Add” 버튼 등 유지 #}
+{% endblock %}

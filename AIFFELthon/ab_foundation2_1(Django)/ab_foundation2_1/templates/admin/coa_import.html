@@ -1,0 +1,20 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block content %}
+<h1>Import COA Excel</h1>
+
+<form method="post" enctype="multipart/form-data" class="form-row">
+  {% csrf_token %}
+
+  <p>
+    {{ form.file.label_tag }} {{ form.file }}
+  </p>
+
+  <p>
+    {{ form.clear_existing }} {{ form.clear_existing.label_tag }}
+  </p>
+
+  <input type="submit" value="Upload" class="default">
+</form>
+{% endblock %}

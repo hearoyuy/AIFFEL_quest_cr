@@ -1,0 +1,46 @@
+<div class="bg-green-800 text-white px-6 py-3 rounded-t-lg">
+    <h2 class="text-lg font-semibold">General Information</h2>
+</div>
+<div class="p-6">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
+        <div>
+            <label for="booking_document_no" class="block text-sm font-medium text-gray-700 mb-1">Booking Document No.</label>
+            <input type="text" name="booking_document_no" id="booking_document_no" value="{{ document_data.booking_document_no|default_if_none:'' }}" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+        </div>
+        <div>
+            <label for="transaction_doc_type" class="block text-sm font-medium text-gray-700 mb-1">Transaction Doc. Type</label>
+            <input type="text" name="transaction_doc_type" id="transaction_doc_type" value="{{ document_data.transaction_doc_type|default_if_none:'' }}" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+        </div>
+        <div>
+            <label for="internal_request_no" class="block text-sm font-medium text-gray-700 mb-1">Internal Request No.</label>
+            <input type="text" name="internal_request_no" id="internal_request_no" value="{{ document_data.internal_request_no|default_if_none:'' }}" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+        </div>
+        <div>
+            <label for="transaction_document_date" class="block text-sm font-medium text-gray-700 mb-1">Transaction Document Date</label>
+            <input type="date" name="transaction_document_date" id="transaction_document_date" value="{{ document_data.transaction_document_date|date:'Y-m-d' }}" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+        </div>
+        <div>
+            <label for="service_date" class="block text-sm font-medium text-gray-700 mb-1">Service Date</label>
+            <input type="date" name="service_date" id="service_date" value="{{ document_data.service_date|date:'Y-m-d' }}" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+        </div>
+        <div>
+            <label for="booking_date" class="block text-sm font-medium text-gray-700 mb-1">Booking Date</label>
+            <input type="date" name="booking_date" id="booking_date" value="{{ document_data.booking_date|date:'Y-m-d' }}" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+        </div>
+        <div class="md:col-span-1">
+            <label for="closing_period" class="block text-sm font-medium text-gray-700 mb-1">Closing Period</label>
+            <input type="month" name="closing_period" id="closing_period" value="{{ document_data.closing_period|default_if_none:'' }}" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+        </div>
+        <div class="md:col-span-1">
+            <label for="ledger" class="block text-sm font-medium text-gray-700 mb-1">Ledger</label>
+            <select name="ledger" id="ledger" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                <option value="IFRS" {% if document_data.ledger == "IFRS" %}selected{% endif %}>IFRS</option>
+                <option value="Local(DE)" {% if document_data.ledger == "Local(DE)" %}selected{% endif %}>Local(DE)</option>
+            </select>
+        </div>
+        <div class="md:col-span-3">
+            <label for="transaction_summary" class="block text-sm font-medium text-gray-700 mb-1">Transaction Summary</label>
+            <input type="text" maxlength="50" name="transaction_summary" id="transaction_summary" value="{{ document_data.transaction_summary|default_if_none:'' }}" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+        </div>
+    </div>
+</div>

@@ -1,0 +1,713 @@
+{% comment %} templates/includes/_accounting_journal_form.html {% endcomment %}
+{% load static %}
+
+{# 정적 파일 URL을 저장하기 위한 숨겨진 div #}
+<div id="static-urls-data" style="display: none;"
+     data-no-pdf-preview-text="표시할 PDF 문서가 없습니다."> {# 기본 텍스트를 data 속성으로 관리 #}
+</div>
+
+<div id="mainContentArea" class="container mx-auto my-12 px-4 max-w-7xl">
+
+    {# --- PDF 보기 버튼 (position: fixed 적용) --- #}
+    <button id="openPdfSidebarBtn" type="button"
+            class="fixed top-5 right-5 z-30 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 flex items-center"
+            onclick="showPdf(null)">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M4 2a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2H4zm6 2a1 1 0 00-1 1v2a1 1 0 102 0V5a1 1 0 00-1-1zM8 9a1 1 0 00-1 1v4a1 1 0 102 0v-4a1 1 0 00-1-1zm4-4a1 1 0 100 2h2a1 1 0 100-2h-2zm0 3a1 1 0 00-1 1v5a1 1 0 102 0v-5a1 1 0 00-1-1z" clip-rule="evenodd" />
+        </svg>
+        PDF 보기
+    </button>
+
+    <form id="accountingJournalForm" method="post">
+        {% csrf_token %}
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-2xl font-bold text-green-700">Accounting Journal Entry</h1>
+        </div>
+
+        {# General Information (이하 폼 내용은 이전과 동일하여 생략) #}
+        <div class="bg-white shadow-md rounded-lg mb-6">
+            {% include "includes/_general_info_section.html" %}
+        </div>
+
+        <div class="bg-white shadow-md rounded-lg mb-6">
+            {% include "includes/_transaction_details_section.html" %}
+        </div>
+
+        <div class="bg-white shadow-md rounded-lg mb-6">
+            {% include "includes/_payment_section.html" %}
+        </div>
+        {# (폼 내용 끝) #}
+
+        <div class="text-center my-10">
+            <button type="submit" name="action" value="confirm" class="px-8 py-3 bg-green-600 text-white text-lg font-semibold rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 mx-2">Confirm</button>
+            <button type="button" name="action_delete" class="px-8 py-3 bg-red-600 text-white text-lg font-semibold rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 mx-2">Delete</button>
+            {# Reparse 버튼 추가 #}
+            <button type="button" id="reparseButton" class="px-8 py-3 bg-gray-600 text-white text-lg font-semibold rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 mx-2">Reparse</button>
+        </div>
+    </form>
+</div> {# End of mainContentArea #}
+
+{# PDF 사이드바 HTML #}
+<div id="pdfSidebar" class="fixed top-0 right-0 h-full w-full sm:w-3/4 md:w-1/2 lg:w-1/3 bg-white shadow-xl transform translate-x-full transition-transform duration-300 ease-in-out z-50 p-4 flex flex-col">
+    <div class="flex justify-between items-center mb-4 pb-2 border-b border-gray-200">
+        <h2 class="text-xl font-semibold text-gray-800">Document Viewer</h2>
+        <button id="closePdfSidebarBtn" type="button" class="text-gray-500 hover:text-gray-800 focus:outline-none text-2xl leading-none p-1 hover:bg-gray-200 rounded-full">
+            &times;
+        </button>
+    </div>
+
+    <div id="pdfContent" class="flex-grow w-full overflow-hidden relative">
+        <div id="zoomContainer" class="w-full h-full overflow-auto">
+            <img id="pdfImageView" class="hidden" alt="Invoice Preview" />
+        </div>
+        <p id="pdfPlaceholder" class="text-gray-500 text-sm absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">Document를 선택해 주세요.</p>
+        <div class="absolute bottom-2 left-1/2 -translate-x-1/2 text-gray-500 text-xs pointer-events-none">
+            마우스 휠을 사용하여 이미지 크기를 조정할 수 있습니다.
+        </div>
+    </div>
+</div>
+<style>
+body {
+    transition: padding-right 0.3s ease-in-out;
+    overflow-x: hidden;
+}
+#zoomContainer {
+    width: 100%;
+    height: 100%;
+    cursor: grab;
+}
+#pdfImageView {
+    transform-origin: top left;
+    transition: transform 0.1s ease-out;
+    user-select: none;
+    pointer-events: none;
+}
+</style>
+
+<script>
+    let NO_PDF_DEFAULT_TEXT = '표시할 PDF 문서가 없습니다.';
+    const staticUrlsDataElement = document.getElementById('static-urls-data');
+    if (staticUrlsDataElement && staticUrlsDataElement.dataset.noPdfPreviewText) {
+        NO_PDF_DEFAULT_TEXT = staticUrlsDataElement.dataset.noPdfPreviewText;
+    }
+
+    let mainSidebarWasOpenBeforePdfView = false; // 왼쪽 메인 사이드바 상태 기억
+    let currentActiveDocumentId = null; // 전역 변수로 선언 (또는 모듈 스코프 등)
+
+    async function loadJournalFormData(documentId) {
+        currentActiveDocumentId = documentId;
+        const noMsg  = document.getElementById("noLinesMsg");
+        if (noMsg) noMsg.style.display = "none";   // 첫 줄이 생겼으면 메시지 숨김
+
+        console.log(`[loadJournalFormData] Loading data for document ID: ${documentId}`);
+        if (!documentId) {
+            console.warn("[loadJournalFormData] No documentId provided. Aborting form data load.");
+            return;
+        }
+        try {
+            const response = await fetch(`/journal/api/get-data/${documentId}/`);
+            if (!response.ok) {
+                let errorMsg = `HTTP error! status: ${response.status} for ID: ${documentId}`;
+                if(response.status === 404) { errorMsg = `문서 ID ${documentId}를 찾을 수 없습니다.`; }
+                console.error(`[loadJournalFormData] ${errorMsg}`);
+                throw new Error(errorMsg);
+            }
+            const data = await response.json();
+            console.log("[loadJournalFormData] Data received from API:", data);
+
+            console.log("[loadJournalFormData] Populating form fields...");
+            document.getElementById('booking_document_no').value = data.booking_document_no || '';
+            document.getElementById('transaction_doc_type').value = data.transaction_doc_type || '';
+            document.getElementById('internal_request_no').value = data.internal_request_no || '';
+            document.getElementById('transaction_document_date').value = data.transaction_document_date ? data.transaction_document_date.split('T')[0] : '';
+            document.getElementById('service_date').value = data.service_date ? data.service_date.split('T')[0] : '';
+            document.getElementById('booking_date').value = data.booking_date ? data.booking_date.split('T')[0] : '';
+            document.getElementById('closing_period').value = data.closing_period || '';
+            const ledgerSelect = document.getElementById('ledger');
+            ledgerSelect.value = data.ledger || ledgerSelect.options[0].value;
+            document.getElementById('transaction_summary').value = data.transaction_summary || '';
+
+            populateTransactionLines(data);
+
+            document.getElementById('payment_entity_no').value = data.payment_entity_no || '';
+            document.getElementById('payment_entity').value = data.payment_entity || '';
+            document.getElementById('payment_payer').value = data.payment_payer || '';
+            document.getElementById('payment_payee').value = data.payment_payee || '';
+            document.getElementById('payment_bank').value = data.payment_bank || '';
+            document.getElementById('payment_bic_swift').value = data.payment_bic_swift || '';
+            document.getElementById('payment_bank_account_no').value = data.payment_bank_account_no || '';
+            document.getElementById('payment_terms').value = data.payment_terms || '';
+            document.getElementById('payment_date').value = data.payment_date ? data.payment_date.split('T')[0] : '';
+            document.getElementById('payment_counterparty_note').value = data.payment_counterparty_note || '';
+            const paymentAlternativeSelect = document.getElementById('payment_alternative');
+            if (paymentAlternativeSelect) {
+                paymentAlternativeSelect.value = data.payment_alternative || 'No';
+            }
+            // 🔁 자동 채움: 기존 데이터가 없으면 로직으로 보완
+            if (!data.payment_payee && data.main_trading_partner_role === "issuer") {
+                // 발행자가 상대방 → 우리가 지급해야 하므로 그 정보를 사용
+                document.getElementById('payment_entity_no').value = data.issuer_entity_no || '';
+                document.getElementById('payment_entity').value = data.issuer_entity || '';
+                document.getElementById('payment_payer').value = data.receiver_entity || 'AB Foundation GmbH';
+                document.getElementById('payment_payee').value = data.issuer_entity || '';
+                document.getElementById('payment_bank').value = data.issuer_bank || '';
+                document.getElementById('payment_bic_swift').value = data.issuer_bic_swift || '';
+                document.getElementById('payment_bank_account_no').value = data.issuer_bank_account_no || '';
+                document.getElementById('payment_counterparty_note').value =
+                `Role 'issuer': ${data.receiver_entity || 'payer'} is receiver (purchase invoice).`;
+            }
+
+            console.log("[loadJournalFormData] Form fields populated.");
+
+            const openPdfBtn = document.getElementById('openPdfSidebarBtn');
+            const pdfSidebar = document.getElementById('pdfSidebar');
+
+            if (data.uploaded_file_url) {
+                if (openPdfBtn) {
+                    openPdfBtn.setAttribute('onclick', `showPdf('${data.uploaded_file_url}')`);
+                    openPdfBtn.disabled = false;
+                    openPdfBtn.title = "View PDF";
+                }
+                if (pdfSidebar && !pdfSidebar.classList.contains('translate-x-full')) {
+                    showPdf(data.uploaded_file_url);
+                }
+            } else {
+                if (openPdfBtn) {
+                    openPdfBtn.setAttribute('onclick', `showPdf(null)`);
+                    openPdfBtn.disabled = false;
+                    openPdfBtn.title = "No PDF available";
+                }
+                if (pdfSidebar && !pdfSidebar.classList.contains('translate-x-full')) {
+                   showPdf(null);
+                }
+            }
+
+            const journalForm = document.getElementById('accountingJournalForm');
+            if (journalForm && documentId) {
+                let hiddenDocIdInput = journalForm.querySelector('input[name="document_id"]');
+                if (!hiddenDocIdInput) {
+                    hiddenDocIdInput = document.createElement('input');
+                    hiddenDocIdInput.type = 'hidden';
+                    hiddenDocIdInput.name = 'document_id';
+                    journalForm.appendChild(hiddenDocIdInput);
+                }
+                hiddenDocIdInput.value = documentId;
+            }
+        } catch (error) {
+            console.error('[loadJournalFormData] Error during data fetch or processing:', error);
+        }
+    }
+
+    function populateTransactionLines(data) {
+        const requiredLines = Math.max(
+            3,
+            Array.isArray(data.transaction_details) ? data.transaction_details.length : 0
+        );
+
+        // ② 기존 DOM에 부족한 줄이 있으면 <template>을 복제해 추가
+        const wrapper = document.getElementById("linesWrap");        // 라인들을 담는 div
+        const tmpl     = document.getElementById("lineTemplate");     // 숨겨둔 <template>
+        let currentCnt = wrapper.querySelectorAll("[data-line]").length;
+
+        while (currentCnt < requiredLines) {
+            const idx = currentCnt + 1;                  // 1-based
+            const node = tmpl.content.cloneNode(true);
+
+            // 새 라인 내부 input들의 id / name 재지정
+            node.querySelectorAll("[data-field]").forEach((el) => {
+                const field = el.dataset.field;          // gl_account_no ⋯
+                el.id   = `line${idx}_${field}`;
+                el.name = `lines-${idx-1}-${field}`;     // 백엔드 수집용
+                el.value = "";
+            });
+            // 헤더 “Line Item n” 수정
+            node.querySelector("[data-title]").textContent = `Line Item ${idx}`;
+            node.firstElementChild.dataset.line = idx;   // <div data-line="idx">
+
+            wrapper.appendChild(node);
+            currentCnt += 1;
+        }
+
+        // ③ 모든 필드 초기화
+        const linesToInitialize = Math.max(currentCnt, requiredLines);
+        for (let i = 1; i <= requiredLines; i++) {
+            [
+                "gl_account_no", "gl_account_desc", "currency", "amount",
+                "tax_code", "description", "position",
+                "master_type","master_key","master_value","quantity","unit_price",
+            ].forEach((f) => {
+                const el = document.getElementById(`line${i}_${f}`);
+                if (el) el.value = "";
+            });
+        }
+
+        // ④ 데이터 채우기
+        if (Array.isArray(data.transaction_details)) {
+            data.transaction_details.forEach((row, idx) => {
+                const i = idx + 1;           // 1-based
+                document.getElementById(`line${i}_gl_account_no`).value  = row.gl_account_no || "";
+                document.getElementById(`line${i}_gl_account_desc`).value= row.gl_account_description || "";
+                document.getElementById(`line${i}_currency`).value       = row.currency || "";
+                document.getElementById(`line${i}_amount`).value         = row.amount || "";
+                document.getElementById(`line${i}_tax_code`).value       = row.tax_code || "";
+                document.getElementById(`line${i}_description`).value    = row.description || "";
+                document.getElementById(`line${i}_position`).value = row.position || ""; // <-- position 값을 사용하도록 수정
+            });
+        }
+
+        // ★★★ 데이터 채우기 완료 후 합계 업데이트 함수 호출 ★★★
+        updateDebitCreditTotals();
+    }
+
+    function updateDebitCreditTotals() {
+        let totalDebit = 0;
+        let totalCredit = 0;
+        const linesWrapper = document.getElementById('linesWrap');
+
+        if (!linesWrapper) {
+            console.error("Element with ID 'linesWrap' not found. Cannot calculate totals.");
+            return;
+        }
+
+        const lineItems = linesWrapper.querySelectorAll('div[data-line]');
+
+        lineItems.forEach((lineDiv) => {
+            // 각 라인 div 내에서 amount와 position 필드를 data-field 속성으로 찾습니다.
+            const amountInput = lineDiv.querySelector('input[data-field="amount"]');
+            const positionSelect = lineDiv.querySelector('select[data-field="position"]'); // select로 변경됨
+
+            if (amountInput && positionSelect) {
+                const amount = parseFloat(amountInput.value) || 0;
+                const position = positionSelect.value; // "debit" 또는 "credit"
+
+                if (position === 'debit') {
+                    totalDebit += amount;
+                } else if (position === 'credit') {
+                    totalCredit += amount;
+                }
+            }
+        });
+
+        const totalDebitEl = document.getElementById('totalDebit');
+        const totalCreditEl = document.getElementById('totalCredit');
+        const balanceStatusEl = document.getElementById('balanceStatus');
+
+        // 통화 기호는 실제 통화에 맞게 동적으로 설정하거나, 고정 값 사용
+        const currencySymbol = "$"; // 또는 다른 통화 기호 (예: document.getElementById('currency').value + " " )
+
+        if (totalDebitEl) totalDebitEl.textContent = `${currencySymbol}${totalDebit.toFixed(2)}`;
+        if (totalCreditEl) totalCreditEl.textContent = `${currencySymbol}${totalCredit.toFixed(2)}`;
+
+        if (balanceStatusEl) {
+            if (Math.abs(totalDebit - totalCredit) < 0.0001) {
+                balanceStatusEl.textContent = 'Balanced';
+                balanceStatusEl.classList.remove('text-red-600');
+                balanceStatusEl.classList.add('text-green-600');
+            } else {
+                balanceStatusEl.textContent = 'Not Balanced';
+                balanceStatusEl.classList.remove('text-green-600');
+                balanceStatusEl.classList.add('text-red-600');
+            }
+        }
+        console.log(`Totals updated: Debit=${totalDebit.toFixed(2)}, Credit=${totalCredit.toFixed(2)}`);
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const btnAdd = document.getElementById("btnAddLine");
+        const wrap   = document.getElementById("linesWrap");
+        const tmpl   = document.getElementById("lineTemplate");
+
+        btnAdd.addEventListener("click", () => {
+            const idx = wrap.querySelectorAll("[data-line]").length; // 0-based
+            const node = tmpl.content.cloneNode(true);
+
+            node.querySelector("[data-line]").dataset.line = idx;            // data-line 갱신
+            node.querySelector("[data-title]").textContent = `Line Item ${idx + 1}`;
+
+            // 모든 input에 id·name 부여
+            node.querySelectorAll("[data-field]").forEach((el) => {
+                const field = el.dataset.field; // gl_account_no …
+                el.id   = `line${idx + 1}_${field}`;
+                el.name = `lines-${idx}-${field}`;
+                if (field === "position") el.value = String(idx + 1).padStart(3, "0");
+            });
+
+            wrap.appendChild(node);
+        });
+    });
+
+    function getSidebarWidthPercentage() {
+        const screenWidth = window.innerWidth;
+        if (screenWidth >= 1024) { return (1/3) * 100; }
+        else if (screenWidth >= 768) { return (1/2) * 100; }
+        else if (screenWidth >= 640) { return (3/4) * 100; }
+        else { return 100; }
+    }
+
+    function showPdf(imageUrl) {
+        console.log('[showPdf] Called with imageUrl:', imageUrl);
+        const pdfViewerSidebar = document.getElementById('pdfSidebar');
+        const pdfImageView = document.getElementById('pdfImageView');
+        const pdfPlaceholder = document.getElementById('pdfPlaceholder');
+
+        const mainPageSidebar = document.getElementById("sidebar");
+        const mainPageWrap = document.getElementById("mainWrapper");
+        const mainPageBtnOpen = document.getElementById("btnOpen");
+
+        if (mainPageSidebar && mainPageWrap && mainPageBtnOpen) {
+            const isMainPageSidebarOpen = !mainPageSidebar.classList.contains("-translate-x-full");
+            if (isMainPageSidebarOpen) {
+                mainPageSidebar.classList.add("-translate-x-full", "md:-translate-x-full");
+                mainPageWrap.classList.remove("md:ml-64");
+                mainPageBtnOpen.classList.remove("hidden");
+                mainSidebarWasOpenBeforePdfView = true;
+            } else {
+                mainSidebarWasOpenBeforePdfView = false;
+            }
+        } else {
+            mainSidebarWasOpenBeforePdfView = false;
+        }
+
+        if (pdfViewerSidebar) {
+            const sidebarWidthPercent = getSidebarWidthPercentage();
+            document.body.style.paddingRight = sidebarWidthPercent + '%';
+            document.body.classList.add('pdf-sidebar-open');
+            pdfViewerSidebar.classList.remove('translate-x-full');
+        }
+
+        if (imageUrl) {
+            const cacheBustedUrl = imageUrl + (imageUrl.includes('?') ? '&t=' : '?t=') + new Date().getTime();
+            pdfImageView.src = cacheBustedUrl;
+            pdfImageView.classList.remove('hidden');
+            if (pdfPlaceholder) pdfPlaceholder.classList.add('hidden');
+        } else {
+            pdfImageView.src = '';
+            pdfImageView.classList.add('hidden');
+            if (pdfPlaceholder) {
+                pdfPlaceholder.textContent = NO_PDF_DEFAULT_TEXT;
+                pdfPlaceholder.classList.remove('hidden');
+            }
+        }
+    }
+
+    function closePdfViewerSidebar() {
+        console.log('[closePdfViewerSidebar] Called.');
+        const pdfViewerSidebar = document.getElementById('pdfSidebar');
+        const pdfImageView = document.getElementById('pdfImageView');
+
+        if (pdfViewerSidebar) {
+            document.body.style.paddingRight = '0';
+            document.body.classList.remove('pdf-sidebar-open');
+            pdfViewerSidebar.classList.add('translate-x-full');
+            if (pdfImageView) {
+                pdfImageView.src = '';
+            }
+        }
+
+        if (mainSidebarWasOpenBeforePdfView) {
+            const mainPageSidebar = document.getElementById("sidebar");
+            const mainPageWrap = document.getElementById("mainWrapper");
+            const mainPageBtnOpen = document.getElementById("btnOpen");
+            if (mainPageSidebar && mainPageWrap && mainPageBtnOpen) {
+                mainPageSidebar.classList.remove("-translate-x-full", "md:-translate-x-full");
+                mainPageWrap.classList.add("md:ml-64");
+                mainPageBtnOpen.classList.add("hidden");
+            }
+            mainSidebarWasOpenBeforePdfView = false;
+        }
+    }
+
+    // --- 여기가 DOMContentLoaded 리스너 시작입니다 ---
+    document.addEventListener('DOMContentLoaded', async function () {
+        console.log('[DOMContentLoaded] Event fired.');
+        const closePdfSidebarBtn = document.getElementById('closePdfSidebarBtn');
+        const accountingForm = document.getElementById('accountingJournalForm');
+        const pdfSidebarForSubmitListener = document.getElementById('pdfSidebar');
+        const openPdfBtn = document.getElementById('openPdfSidebarBtn');
+        const pdfImageViewEl = document.getElementById('pdfImageView');
+        const pdfPlaceholderEl = document.getElementById('pdfPlaceholder');
+
+        const journalContextEl = document.getElementById('journalContext');
+        const currentDocumentIdFromPage = journalContextEl ? journalContextEl.dataset.documentId : null;
+        console.log('[DOMContentLoaded] currentDocumentIdFromPage:', currentDocumentIdFromPage);
+
+        const reparseButton = document.getElementById('reparseButton');
+        if (reparseButton) {
+            reparseButton.addEventListener('click', function(event) {
+                console.log('Reparse button clicked.');
+
+                if (!currentActiveDocumentId) { // 전역 변수 currentActiveDocumentId를 참조
+                    alert('재분석할 문서를 먼저 선택(로드)해주세요. (예: 목록에서 "To confirm" 버튼 클릭)');
+                    return; // ID 없으면 진행 안 함
+                }
+
+                // 1. 폼의 action 속성을 동적으로 설정
+                //    Django URL 이름 'journal_entry_form_view'에 해당하는 URL 구조를 따라야 합니다.
+                const formActionUrl = `/journal/entry/${currentActiveDocumentId}/`;
+                accountingForm.setAttribute('action', formActionUrl);
+                console.log(`Form action set to: ${formActionUrl}`);
+
+                // 2. 서버에서 request.POST.get('action') == 'reparse'로 확인하기 위해
+                //    'action'이라는 이름의 hidden input 값을 'reparse'로 설정.
+                //    이 필드가 이미 폼에 <button type="submit" name="action" value="reparse"> 형태로
+                //    존재하고 Reparse 버튼이 type="submit"이라면 이 부분은 필요 없을 수 있으나,
+                //    type="button"으로 하거나 명시적으로 값을 설정하는 것이 안전합니다.
+                let actionInput = accountingForm.querySelector('input[name="action"]');
+                if (!actionInput) { // 'action' 필드가 없으면 새로 생성
+                    actionInput = document.createElement('input');
+                    actionInput.type = 'hidden';
+                    actionInput.name = 'action';
+                    accountingForm.appendChild(actionInput);
+                }
+
+                actionInput.value = 'reparse'; // 'reparse' 액션 값 설정
+                console.log('Hidden input "action" set to "reparse".');
+
+                // 3. 폼을 동기식으로 제출
+                //    사용자에게 알림 후 제출
+                yes_no = confirm(`[Reparse Action] 다음 문서 ID로 재분석 작업을 위해 폼을 제출합니다:\nID: ${currentActiveDocumentId}\nAction URL: ${accountingForm.getAttribute('action')}`);
+                if(yes_no){
+                    accountingForm.submit();
+                }
+            });
+        }
+
+
+        if (closePdfSidebarBtn) {
+            closePdfSidebarBtn.addEventListener('click', closePdfViewerSidebar);
+        }
+
+        if (accountingForm && pdfSidebarForSubmitListener) {
+            accountingForm.addEventListener('submit', function(event) {
+                if (!pdfSidebarForSubmitListener.classList.contains('translate-x-full')) {
+                    sessionStorage.setItem('pdfViewerShouldBeOpen', 'true');
+                } else {
+                    sessionStorage.removeItem('pdfViewerShouldBeOpen');
+                }
+
+                const submitter = event.submitter;
+                if (submitter && submitter.name === 'action' && submitter.value === 'confirm') {
+                    console.log('[FormSubmit] Confirm button clicked.');
+
+                    // 1. "Balanced" 상태 확인
+                    const balanceStatusEl = document.getElementById('balanceStatus');
+                    if (balanceStatusEl && balanceStatusEl.textContent !== 'Balanced') {
+                        alert('차변과 대변이 일치하지 않습니다 (Status is Not Balanced).\n먼저 잔액을 맞춰주세요.');
+                        event.preventDefault(); // 폼 제출 중단
+                        return;
+                    }
+
+                    // 2. 현재 작업 대상 문서 ID 확인 (Reparse와 유사하게)
+                    let activeDocumentIdForConfirm = null;
+                    if (currentActiveDocumentId) { // loadJournalFormData에서 설정된 ID 우선 사용
+                        activeDocumentIdForConfirm = currentActiveDocumentId;
+                    } else if (initialDocumentIdFromPage) { // 페이지 로드 시 초기 ID 사용
+                        activeDocumentIdForConfirm = initialDocumentIdFromPage;
+                    }
+                    // 폼 내 숨겨진 document_id 필드에서도 가져올 수 있음 (loadJournalFormData에서 설정했다면)
+                    const hiddenDocIdField = accountingForm.querySelector('input[name="document_id"]');
+                    if (!activeDocumentIdForConfirm && hiddenDocIdField && hiddenDocIdField.value) {
+                        activeDocumentIdForConfirm = hiddenDocIdField.value;
+                    }
+
+                    if (!activeDocumentIdForConfirm) {
+                        alert('오류: Confirm 작업을 위한 문서 ID를 확인할 수 없습니다. 문서를 다시 로드해주세요.');
+                        event.preventDefault(); // 폼 제출 중단
+                        return;
+                    }
+
+                    // 3. 폼의 action 속성을 동적으로 설정
+                    //    (Reparse와 동일한 URL 구조 및 뷰를 사용한다고 가정)
+                    const formActionUrl = `/journal/entry/${activeDocumentIdForConfirm}/`;
+                    accountingForm.setAttribute('action', formActionUrl);
+                    console.log(`[Confirm Submit] Form action set to: ${formActionUrl}`);
+
+                    // 4. 사용자에게 최종 확인 (confirm 창)
+                    const confirmationMessage = `[Confirm Action]\n다음 문서 ID에 대해 Confirm 작업을 진행하고 폼을 제출하시겠습니까?\n\nID: ${activeDocumentIdForConfirm}\nAction URL: ${accountingForm.getAttribute('action')}`;
+
+                    if (window.confirm(confirmationMessage)) {
+                        // 사용자가 "확인"을 눌렀을 경우
+                        console.log('[Confirm Submit] User confirmed. Proceeding with form submission.');
+
+                        // --- 기존 Confirm 관련 sessionStorage 로직 (제출 직전에 수행) ---
+                        if (pdfSidebarForSubmitListener && !pdfSidebarForSubmitListener.classList.contains('translate-x-full')) {
+                            sessionStorage.setItem('pdfViewerShouldBeOpen', 'true');
+                        } else {
+                            sessionStorage.removeItem('pdfViewerShouldBeOpen');
+                        }
+                        sessionStorage.setItem('formShouldRefresh', 'true');
+                        if (activeDocumentIdForConfirm) {
+                            sessionStorage.setItem('docIdForRefresh', activeDocumentIdForConfirm);
+                            console.log('[FormSubmit] Storing docIdForRefresh for Confirm:', activeDocumentIdForConfirm);
+                        }
+                        // --- sessionStorage 로직 끝 ---
+
+                        // 폼은 자동으로 제출됩니다 (event.preventDefault()가 호출되지 않았으므로).
+                        // 만약 여기서 추가적인 비동기 작업 후 제출하고 싶다면,
+                        // event.preventDefault()를 호출하고, 모든 작업 완료 후 accountingForm.submit()을 명시적으로 호출해야 합니다.
+                        // 현재는 추가 작업이 없으므로, 이대로 두면 폼이 제출됩니다.
+                    } else {
+                        // 사용자가 "취소"를 눌렀을 경우
+                        console.log('[Confirm Submit] User cancelled.');
+                        event.preventDefault(); // ★★★ 폼 제출 중단 ★★★
+                        return;
+                    }
+
+                    sessionStorage.setItem('formShouldRefresh', 'true');
+                    let docIdToStore = currentDocumentIdFromPage;
+                    if (!docIdToStore) {
+                        const hiddenIdField = accountingForm.querySelector('input[name="document_id"]');
+                        if(hiddenIdField && hiddenIdField.value) {
+                            docIdToStore = hiddenIdField.value;
+                        }
+                    }
+                    if (docIdToStore) {
+                        sessionStorage.setItem('docIdForRefresh', docIdToStore);
+                        console.log('[FormSubmit] Storing docIdForRefresh:', docIdToStore);
+                    } else {
+                         console.warn('[FormSubmit] No document ID available to store for refresh.');
+                    }
+                } else {
+                    sessionStorage.removeItem('formShouldRefresh');
+                    sessionStorage.removeItem('docIdForRefresh');
+                }
+            });
+        }
+
+        const linesWrapper = document.getElementById('linesWrap');
+
+        // 이벤트 위임을 사용하여 라인 아이템 내의 amount 또는 position 변경 감지
+        if (linesWrapper) {
+            linesWrapper.addEventListener('input', function(event) { // 'input' 이벤트는 값 변경 즉시 감지
+                if (event.target.matches('input[data-field="amount"]')) {
+                    console.log('Line item Amount changed, recalculating totals.');
+                    updateDebitCreditTotals();
+                }
+            });
+            linesWrapper.addEventListener('change', function(event) { // 'change' 이벤트는 focus 잃을 때 또는 select 변경 시
+                if (event.target.matches('select[data-field="position"]')) { // 'position' 필드가 select로 변경됨
+                    console.log('Line item Position changed, recalculating totals.');
+                    updateDebitCreditTotals();
+                }
+            });
+        }
+
+        let initialPdfUrlFromDjango = null;
+        {% if document_data and document_data.uploaded_file_url %}
+            initialPdfUrlFromDjango = "{{ document_data.uploaded_file_url|escapejs }}";
+        {% endif %}
+        console.log('[DOMContentLoaded] initialPdfUrlFromDjango:', initialPdfUrlFromDjango);
+
+        if (openPdfBtn) {
+            if (initialPdfUrlFromDjango) {
+                openPdfBtn.setAttribute('onclick', `showPdf('${initialPdfUrlFromDjango}')`);
+                openPdfBtn.disabled = false;
+            } else {
+                openPdfBtn.setAttribute('onclick', `showPdf(null)`);
+                openPdfBtn.disabled = false;
+            }
+        }
+
+        if (pdfImageViewEl) pdfImageViewEl.classList.add('hidden');
+        if (pdfPlaceholderEl) {
+            pdfPlaceholderEl.textContent = "Document를 선택해 주세요.";
+            pdfPlaceholderEl.classList.remove('hidden');
+        }
+
+        const formShouldRefresh = sessionStorage.getItem('formShouldRefresh');
+        const docIdForRefresh = sessionStorage.getItem('docIdForRefresh');
+        let pdfUrlAfterFormRefresh = initialPdfUrlFromDjango; // 기본값
+
+        if (formShouldRefresh === 'true' && docIdForRefresh) {
+            console.log(`[DOMContentLoaded] Refreshing form data for doc ID: ${docIdForRefresh}`);
+            await loadJournalFormData(docIdForRefresh); // 이 함수는 내부적으로 PDF 버튼의 onclick도 업데이트 할 수 있음
+            sessionStorage.removeItem('formShouldRefresh');
+            sessionStorage.removeItem('docIdForRefresh');
+            console.log('[DOMContentLoaded] Cleared form refresh flags.');
+            // loadJournalFormData 후 openPdfBtn의 onclick이 최신 PDF URL로 업데이트 되었을 수 있으므로, 그 값을 사용
+            if (openPdfBtn && openPdfBtn.getAttribute('onclick')) {
+                const onclickAttr = openPdfBtn.getAttribute('onclick');
+                const match = onclickAttr.match(/showPdf\(['"](.*?)['"]\)/);
+                if (match && match[1] && match[1] !== 'null') {
+                    pdfUrlAfterFormRefresh = match[1];
+                } else if (match && match[1] === 'null') {
+                    pdfUrlAfterFormRefresh = null;
+                }
+            }
+        }
+
+        const pdfViewerShouldBeOpen = sessionStorage.getItem('pdfViewerShouldBeOpen');
+        if (pdfViewerShouldBeOpen === 'true') {
+            console.log('[DOMContentLoaded] Auto-reopening PDF viewer with URL:', pdfUrlAfterFormRefresh);
+            showPdf(pdfUrlAfterFormRefresh); // 폼 새로고침 후의 최신 PDF URL 사용
+            sessionStorage.removeItem('pdfViewerShouldBeOpen');
+        }
+
+        // --- Zoom and Pan 스크립트를 DOMContentLoaded 내로 이동 ---
+        console.log("[DOMContentLoaded] Initializing Zoom/Pan script...");
+        let zoom = 1;
+        // let originX = 0; // originX, Y는 현재 사용되지 않으므로 주석 처리 또는 제거 가능
+        // let originY = 0;
+        let isDragging = false;
+        let startX_drag, startY_drag, scrollLeft_drag, scrollTop_drag; // 변수명 변경 (상위 스코프와 충돌 방지)
+
+        const zoomContainer = document.getElementById('zoomContainer');
+        const pdfImageForZoom = document.getElementById('pdfImageView'); // 변수명 변경
+
+        console.log("[Zoom/Pan] zoomContainer:", zoomContainer);
+        console.log("[Zoom/Pan] pdfImageForZoom:", pdfImageForZoom);
+
+        if (zoomContainer && pdfImageForZoom) {
+            zoomContainer.addEventListener('wheel', (e) => {
+                console.log("[Zoom/Pan] Wheel event fired on zoomContainer. DeltaY:", e.deltaY);
+                e.preventDefault();
+                const delta = e.deltaY > 0 ? -0.1 : 0.1;
+                zoom = Math.min(Math.max(0.5, zoom + delta), 5); // 0.5x ~ 5x 제한
+                pdfImageForZoom.style.transform = `scale(${zoom})`;
+                console.log("[Zoom/Pan] Image scaled to:", zoom);
+            });
+
+            zoomContainer.addEventListener('mousedown', (e) => {
+                console.log("[Zoom/Pan] Mouse down on zoomContainer.");
+                isDragging = true;
+                startX_drag = e.pageX - zoomContainer.offsetLeft;
+                startY_drag = e.pageY - zoomContainer.offsetTop;
+                scrollLeft_drag = zoomContainer.scrollLeft;
+                scrollTop_drag = zoomContainer.scrollTop;
+                zoomContainer.style.cursor = 'grabbing';
+            });
+
+            zoomContainer.addEventListener('mouseleave', () => {
+                if (isDragging) {
+                    console.log("[Zoom/Pan] Mouse leave while dragging.");
+                    isDragging = false;
+                    zoomContainer.style.cursor = 'grab';
+                }
+            });
+
+            zoomContainer.addEventListener('mouseup', () => {
+                if (isDragging) {
+                    console.log("[Zoom/Pan] Mouse up.");
+                    isDragging = false;
+                    zoomContainer.style.cursor = 'grab';
+                }
+            });
+
+            zoomContainer.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                e.preventDefault();
+                const x = e.pageX - zoomContainer.offsetLeft;
+                const y = e.pageY - zoomContainer.offsetTop;
+                const walkX = x - startX_drag;
+                const walkY = y - startY_drag;
+                zoomContainer.scrollLeft = scrollLeft_drag - walkX;
+                zoomContainer.scrollTop = scrollTop_drag - walkY;
+            });
+            console.log("[Zoom/Pan] Event listeners attached.");
+        } else {
+            console.error("[Zoom/Pan] zoomContainer or pdfImageView not found! Zoom/Pan will not work.");
+        }
+        // --- Zoom and Pan 스크립트 끝 ---
+    });
+    // --- DOMContentLoaded 리스너 끝 ---
+</script>

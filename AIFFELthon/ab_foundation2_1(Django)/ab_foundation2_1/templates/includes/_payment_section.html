@@ -1,0 +1,55 @@
+<div class="bg-green-800 text-white px-6 py-3 rounded-t-lg">
+    <h2 class="text-lg font-semibold">Payment</h2>
+</div>
+<div class="p-6">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
+        <!-- Entity No. -->
+        <div>
+            <label for="payment_entity_no" class="block text-sm font-medium text-gray-700 mb-1">Entity No.</label>
+            <input type="text" name="payment_entity_no" id="payment_entity_no" value="{{ document_data.payment_entity_no|default_if_none:'' }}" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+        </div>
+        <div>
+            <label for="payment_entity" class="block text-sm font-medium text-gray-700 mb-1">Entity</label>
+            <input type="text" name="payment_entity" id="payment_entity" value="{{ document_data.payment_entity|default_if_none:'' }}" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+        </div>
+        <div>
+            <label for="payment_payer" class="block text-sm font-medium text-gray-700 mb-1">Payer</label>
+            <input type="text" name="payment_payer" id="payment_payer" value="{{ document_data.payment_payer|default_if_none:'' }}" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+        </div>
+        <div class="md:col-span-1">
+            <label for="payment_payee" class="block text-sm font-medium text-gray-700 mb-1">Payee</label>
+            <input type="text" name="payment_payee" id="payment_payee" value="{{ document_data.payment_payee|default_if_none:'' }}" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+        </div>
+        <div class="md:col-span-2">
+            <label for="payment_bank" class="block text-sm font-medium text-gray-700 mb-1">Bank</label>
+            <input type="text" name="payment_bank" id="payment_bank" value="{{ document_data.payment_bank|default_if_none:'' }}" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+        </div>
+        <div class="md:col-span-1">
+            <label for="payment_bic_swift" class="block text-sm font-medium text-gray-700 mb-1">BIC/SWIFT Code</label>
+            <input type="text" name="payment_bic_swift" id="payment_bic_swift" value="{{ document_data.payment_bic_swift|default_if_none:'' }}" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+        </div>
+        <div class="md:col-span-2">
+            <label for="payment_bank_account_no" class="block text-sm font-medium text-gray-700 mb-1">Bank Account No.</label>
+            <input type="text" name="payment_bank_account_no" id="payment_bank_account_no" value="{{ document_data.payment_bank_account_no|default_if_none:'' }}" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+        </div>
+        <div>
+            <label for="payment_alternative" class="block text-sm font-medium text-gray-700 mb-1">Alternative Payment</label>
+            <select name="payment_alternative" id="payment_alternative" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                <option value="No" {% if document_data.payment_alternative == "No" %}selected{% endif %}>No</option>
+                <option value="Yes" {% if document_data.payment_alternative == "Yes" %}selected{% endif %}>Yes</option>
+            </select>
+        </div>
+        <div>
+            <label for="payment_terms" class="block text-sm font-medium text-gray-700 mb-1">Payment Terms</label>
+            <input type="text" name="payment_terms" id="payment_terms" value="{{ document_data.payment_terms|default_if_none:'' }}" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+        </div>
+        <div>
+            <label for="payment_date" class="block text-sm font-medium text-gray-700 mb-1">Payment Date</label>
+            <input type="date" name="payment_date" id="payment_date" value="{{ document_data.payment_date|date:'Y-m-d' }}" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+        </div>
+        <div class="md:col-span-3">
+            <label for="payment_counterparty_note" class="block text-sm font-medium text-gray-700 mb-1">Counterparty Note</label>
+            <textarea name="payment_counterparty_note" id="payment_counterparty_note" rows="2" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">{{ document_data.payment_counterparty_note|default_if_none:'' }}</textarea>
+        </div>
+    </div>
+</div>
